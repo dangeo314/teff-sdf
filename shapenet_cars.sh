@@ -1,11 +1,11 @@
 #bin/bash
 
-ln -s /YOUR/DATASET/PATH datasets
-ln -s /YOUR/OUTPUT/PATH training-runs
-
-python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/in_the_wild/cars_128.zip \
-  --gpus=8 --batch=32 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
-  --dataset_resolution=128    --dis_linear_pose=False \
+#ln -s /home/dangeo314/Documents/class/ece285dgm/eg3d/dataset_preprocessing/shapenet_cars datasets
+#ln -s /media/dangeo314/05da5c10-00e4-4cb4-a9fc-e95e52cc04ed/teff_logs/ training-runs
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/cars_128.zip \
+  --gpus=1 --batch=8 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
+  --cbase 16384 --dataset_resolution=128    --dis_linear_pose=False \
   --gpc_reg_prob=0.5 \
   --flip_to_dis=true --flip_to_disd=true  --gpc_reg_fade_kimg=1000 \
   --neural_rendering_resolution_final 64 \
@@ -16,5 +16,5 @@ python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/in_the_wi
   --h_discrete_num=36 --h_mean=3.1415926 --flip_type=flip_both_shapenet \
   --dis_cam_dim=2 --lambda_cvg_fg=100 \
   --temperature_init=10.0 --temperature_start_kimg=1500 --temperature_end_kimg=2500 \
-  --shapenet_multipeak=True \
+  --shapenet_multipeak=False \
   --create_label_fov=69.1882

@@ -13,9 +13,13 @@
 
 Code adapted from
 "Alias-Free Generative Adversarial Networks"."""
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_HOME'] = '/usr/local/cuda-11.8'
+os.environ['PATH'] = '/usr/local/cuda-11.8/bin:' + os.environ.get('PATH', '')
+os.environ['LD_LIBRARY_PATH'] = '/usr/local/cuda-11.8/lib64:' + os.environ.get('LD_LIBRARY_PATH', '')
 
 from email.policy import default
-import os
 import click
 import re
 import json
@@ -31,6 +35,7 @@ from torch_utils import training_stats
 from torch_utils import custom_ops
 import sys 
 sys.path.insert(0, 'DPCN')
+
 
 #----------------------------------------------------------------------------
 
@@ -521,8 +526,8 @@ def main(**kwargs):
         })
     elif opts.cfg == 'shapenet':
         rendering_options.update({
-            'depth_resolution': 64,
-            'depth_resolution_importance': 64,
+            'depth_resolution': 32,
+            'depth_resolution_importance': 32,
             'ray_start': 0.1,
             'ray_end': 2.6,
             'box_warp': 1.6,
