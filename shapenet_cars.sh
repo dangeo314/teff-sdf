@@ -2,10 +2,16 @@
 
 #ln -s /home/dangeo314/Documents/class/ece285dgm/eg3d/dataset_preprocessing/shapenet_cars datasets
 #ln -s /media/dangeo314/05da5c10-00e4-4cb4-a9fc-e95e52cc04ed/teff_logs/ training-runs
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
-python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/cars_128.zip \
-  --gpus=1 --batch=8 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
-  --cbase 16384 --dataset_resolution=128    --dis_linear_pose=False \
+export CUDA_HOME=/usr/local/cuda/
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+#export NCCL_DEBUG=INFO
+export NCCL_TIMEOUT=1800
+# export NCCL_P2P_DISABLE=1
+
+python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/cars_128_20k.zip \
+  --gpus=2 --batch=32 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
+  --cbase 32768 --dataset_resolution=128    --dis_linear_pose=False \
   --gpc_reg_prob=0.5 \
   --flip_to_dis=true --flip_to_disd=true  --gpc_reg_fade_kimg=1000 \
   --neural_rendering_resolution_final 64 \

@@ -36,3 +36,4 @@ dependencies:
     - einops
     - opencv-python
     - kornia==0.5.1
+

@@ -41,8 +41,8 @@ def setup_snapshot_image_grid(training_set, random_seed=0):
     rnd = np.random.RandomState(random_seed)
     # gw = np.clip(7680 // training_set.image_shape[2], 7, 32)
     # gh = np.clip(4320 // training_set.image_shape[1], 4, 32)
-    gw = np.clip(7680 // 512, 7, 32)
-    gh = np.clip(4320 // 512, 4, 32)
+    gw = 8# np.clip(7680 // 512, 7, 32)
+    gh = 4# np.clip(4320 // 512, 4, 32)
 
     # No labels => show random subset of training samples.
     if not training_set.has_labels:
@@ -506,7 +506,7 @@ def training_loop(
             cam_pose[:,0:1] = torch.pi / 2
             cam_pose[:,1:2] = torch.pi / 2
             cam2world_matrix = LookAtPose.sample(cam_pose[:,0:1], cam_pose[:,1:2], torch.tensor(G_ema.rendering_kwargs['avg_camera_pivot'], device=z.device), 
-                                                            radius=G_ema.rendering_kwargs['avg_camera_radius'], device=z.device)
+                                                        radius=G_ema.rendering_kwargs['avg_camera_radius'], device=z.device)
             out = [G_ema(z=z, c=torch.cat([cam2world_matrix.reshape(-1,16), c[:,16:]], dim=1), noise_mode='const', cam_pose=cam_pose) for z, c in zip(grid_z, grid_c)]
             images = torch.cat([o['image'].cpu() for o in out]).numpy()
             images_raw = torch.cat([o['image_raw'].cpu() for o in out]).numpy()
