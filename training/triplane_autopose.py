@@ -11,6 +11,8 @@
 # Model for PoF3D
 
 import torch
+from torch import nn
+
 from torch_utils import persistence
 from training.networks_stylegan2 import Generator as StyleGAN2Backbone
 from training.networks_stylegan2 import BackgroundGenerator
@@ -56,7 +58,7 @@ class TriPlaneGeneratorPose(torch.nn.Module):
             self.superresolution = None
         else:
             self.superresolution = dnnlib.util.construct_class_by_name(class_name=rendering_kwargs['superresolution_module'], channels=32, img_resolution=img_resolution, sr_num_fp16_res=sr_num_fp16_res, sr_antialias=rendering_kwargs['sr_antialias'], **sr_kwargs)
-        self.decoder = OSGDecoder(32, {'decoder_lr_mul': rendering_kwargs.get('decoder_lr_mul', 1), 'decoder_output_dim': 32})
+        self.decoder = OSGDecoder(32, {'decoder_lr_mul': rendering_kwargs.get('decoder_lr_mul', 1), 'decoder_output_dim': 32, 'rendering_options':rendering_kwargs})
         self.dino_decoder = OSGDinoDecoder(32, {'decoder_lr_mul': rendering_kwargs.get('decoder_lr_mul', 1), 'decoder_output_dim': rendering_kwargs['dino_channals']})
         self.neural_rendering_resolution = 64
         self.rendering_kwargs = rendering_kwargs
@@ -295,14 +297,23 @@ from training.networks_stylegan2 import FullyConnectedLayer
 class OSGDecoder(torch.nn.Module):
     def __init__(self, n_features, options):
         super().__init__()
+        self.options = options['rendering_options']
         self.hidden_dim = 64
+
+        f = FullyConnectedLayer(self.hidden_dim, 1 + options['decoder_output_dim'],
+                                lr_multiplier=options['decoder_lr_mul'])
+        if self.options['use_sdf']:
+            self.beta = nn.Parameter(torch.tensor(0.1))
+            with torch.no_grad():
+                nn.init.normal_(f.weight[0:1, :], mean=0, std=0.001)
+                f.bias[0:1] = -0.5  # sphere init for SDF
 
         self.net = torch.nn.Sequential(
             FullyConnectedLayer(n_features, self.hidden_dim, lr_multiplier=options['decoder_lr_mul']),
             torch.nn.Softplus(),
-            FullyConnectedLayer(self.hidden_dim, 1 + options['decoder_output_dim'], lr_multiplier=options['decoder_lr_mul'])
+            f
         )
-        
+
     def forward(self, sampled_features, ray_directions):
         # Aggregate features
         sampled_features = sampled_features.mean(1)
@@ -314,7 +325,15 @@ class OSGDecoder(torch.nn.Module):
         x = self.net(x)
         x = x.view(N, M, -1)
         rgb = torch.sigmoid(x[..., 1:])*(1 + 2*0.001) - 0.001 # Uses sigmoid clamping from MipNeRF
-        sigma = x[..., 0:1]
+        raw = x[..., 0:1]
+        if self.options['use_sdf']:
+            sdf = raw
+            beta = torch.clamp(self.beta, min=0.0001, max=1.0)
+            s = 1.0 / beta
+            sigma = (0.5 + 0.5 * sdf.sign()) * (1 - torch.sigmoid(sdf * s)) * s
+        else:
+            sigma = raw
+
         return {'rgb': rgb, 'sigma': sigma}
 
 class OSGDinoDecoder(torch.nn.Module):
@@ -328,7 +347,8 @@ class OSGDinoDecoder(torch.nn.Module):
             FullyConnectedLayer(self.hidden_dim, options['decoder_output_dim'], lr_multiplier=options['decoder_lr_mul'])
         )
         self.decoder_output_dim = options['decoder_output_dim']
-        
+
+
     def forward(self, sampled_features, ray_directions):
         # Aggregate features
         sampled_features = sampled_features.mean(1)

@@ -222,6 +222,7 @@ def parse_comma_separated_list(s):
 @click.option('--min_cvg_bg',        help='Minimum background coverage threshold', metavar='FLOAT',               type=click.FloatRange(min=0), default=0.2)
 @click.option('--lambda_cvg_fg',        help='Strength of foreground coverage loss', metavar='FLOAT',               type=click.FloatRange(min=0), default=0.1)
 @click.option('--lambda_cvg_bg',        help='Strength of background coverage loss', metavar='FLOAT',               type=click.FloatRange(min=0), default=10)
+@click.option('--use_sdf', help='Use SDF rendering instead of density', type=bool, default=False)
 
 # Main TeFF hyperparameters.
 @click.option('--temperature_init',        help='Initial temperature for pose PDF', metavar='FLOAT',               type=click.FloatRange(min=0), default=1.0)
@@ -455,7 +456,8 @@ def main(**kwargs):
         'shapenet_multipeak': opts.shapenet_multipeak,
         'cache_pose': opts.cache_pose,
         'add_noise_to_angle': opts.add_noise_to_angle,
-        'uniform_sampling_test':opts.uniform_sampling_test
+        'uniform_sampling_test':opts.uniform_sampling_test,
+        'use_sdf': opts.use_sdf
     }
 
     if opts.cfg == 'ffhq':
