@@ -452,10 +452,17 @@ class StyleGAN2LossPose(Loss):
                     assert gen_alpha.ndim == 4
                     # Coverage Regularization
                     mask_loss = mask_loss + self.cvg_reg(gen_alpha)
-                
+
+            # Eikonal loss
+            eikonal_loss = 0
+            if self.G.rendering_kwargs.get('use_sdf', True):
+                eikonal = gen_img.get('eikonal_loss', None)
+                if eikonal is not None:
+                    eikonal_loss = eikonal * self.G.rendering_kwargs.get('eikonal_weight', 0.1)
+                    training_stats.report('Loss/G/eikonal', eikonal_loss)
 
             with torch.autograd.profiler.record_function('Gmain_backward'):
-                (loss_Gmain + loss_Gmain_dino + mask_loss).mean().mul(gain).backward()
+                (loss_Gmain + loss_Gmain_dino + mask_loss + eikonal_loss).mean().mul(gain).backward()
 
             if self.G.rendering_kwargs.get('flip_to_dis', False):
                 

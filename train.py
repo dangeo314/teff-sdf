@@ -602,6 +602,8 @@ def main(**kwargs):
 
     # Description string.
     desc = f'{opts.cfg:s}-{dataset_name[:4]:s}-gpu{c.num_gpus:d}-bs{c.batch_size:d}-gm{c.loss_kwargs.r1_gamma:g}'
+    if rendering_options['use_sdf']:
+        desc = 'sdf-' + desc
     if opts.desc is not None:
         desc += f'-{opts.desc}'
 

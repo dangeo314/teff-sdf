@@ -124,6 +124,8 @@ class ImportanceRenderer(torch.nn.Module):
         sample_coordinates = (ray_origins.unsqueeze(-2) + depths_coarse * ray_directions.unsqueeze(-2)).reshape(batch_size, -1, 3)
         sample_directions = ray_directions.unsqueeze(-2).expand(-1, -1, samples_per_ray, -1).reshape(batch_size, -1, 3)
 
+        if rendering_options['use_sdf'] and not test:
+            sample_coordinates = sample_coordinates.detach().requires_grad_(True)
 
         out = self.run_model(planes, dino_planes, decoder, dino_decoder, sample_coordinates, sample_directions, rendering_options)
         colors_coarse = out['rgb']
@@ -142,7 +144,8 @@ class ImportanceRenderer(torch.nn.Module):
 
             sample_directions = ray_directions.unsqueeze(-2).expand(-1, -1, N_importance, -1).reshape(batch_size, -1, 3)
             sample_coordinates = (ray_origins.unsqueeze(-2) + depths_fine * ray_directions.unsqueeze(-2)).reshape(batch_size, -1, 3)
-
+            # if rendering_options['use_sdf'] and not test:
+            #     sample_coordinates = sample_coordinates.detach().requires_grad_(True)
             out = self.run_model(planes, dino_planes, decoder, dino_decoder, sample_coordinates, sample_directions, rendering_options)
             colors_fine = out['rgb']
             densities_fine = out['sigma']
@@ -167,6 +170,17 @@ class ImportanceRenderer(torch.nn.Module):
         sampled_dino_features = sample_from_planes(self.plane_axes, dino_planes, sample_coordinates, padding_mode='zeros', box_warp=options['box_warp'])
 
         out = decoder(sampled_features, sample_directions)
+        # Eikonal loss
+        if options['use_sdf'] and sample_coordinates.requires_grad:
+            gradients = torch.autograd.grad(
+                outputs=out['sdf'].sum(),
+                inputs=sample_coordinates,
+                create_graph=True,
+                retain_graph=True
+            )[0]
+            out['eikonal_loss'] = ((gradients.norm(2, dim=-1) - 1) ** 2).mean()
+            self._eikonal_loss = out['eikonal_loss']
+
         if options.get('density_noise', 0) > 0:
             out['sigma'] += torch.randn_like(out['sigma']) * options['density_noise']
         dino_out = dino_decoder(sampled_dino_features, sample_directions)

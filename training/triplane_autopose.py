@@ -163,6 +163,8 @@ class TriPlaneGeneratorPose(torch.nn.Module):
         if cache_backbone:
             self._last_planes = planes
 
+        if self.rendering_kwargs.get('use_sdf', True):
+            ray_origins = ray_origins.requires_grad_(True)
         # Reshape output into three 32-channel planes
         planes = planes.view(len(planes), -1, 32, planes.shape[-2], planes.shape[-1])
 
@@ -171,6 +173,7 @@ class TriPlaneGeneratorPose(torch.nn.Module):
         # Perform volume rendering
         feature_samples, depth_samples, weights_samples, bg_lambda, dino_samples, fg_mask, var_depth = self.renderer(planes, self.decoder, self.dino_decoder, ray_origins, ray_directions, self.rendering_kwargs, test=test) # channels last
 
+        eikonal_loss = getattr(self.renderer, '_eikonal_loss', None)
         # Reshape into 'raw' neural-rendered image
         H = W = self.neural_rendering_resolution
         feature_image = feature_samples.permute(0, 2, 1).reshape(N, feature_samples.shape[-1], H, W).contiguous()
@@ -206,7 +209,10 @@ class TriPlaneGeneratorPose(torch.nn.Module):
         else:
             sr_image = rgb_image
 
-        return {'image': sr_image, 'image_raw': rgb_image, 'image_depth': depth_image, 'normal_map': normal_map, 'c2w': cam2world_matrix, 'c2w_flip': cam2world_matrix_2, 'intrinsic': intrinsics, 'dino_raw': dino_image, 'dino_planes': dino_planes, 'fg_mask':fg_mask, 'radiance_planes': radiance_planes, 'var_depth':var_depth}
+        return {'image': sr_image, 'image_raw': rgb_image, 'image_depth': depth_image, 'normal_map': normal_map,
+                'c2w': cam2world_matrix, 'c2w_flip': cam2world_matrix_2, 'intrinsic': intrinsics, 'dino_raw': dino_image,
+                'dino_planes': dino_planes, 'fg_mask':fg_mask, 'radiance_planes': radiance_planes, 'var_depth':var_depth,
+                'eikonal_loss': eikonal_loss}
     
     def sample(self, coordinates, directions, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False, **synthesis_kwargs):
         # Compute RGB features, density for arbitrary 3D coordinates. Mostly used for extracting shapes. 
@@ -330,11 +336,12 @@ class OSGDecoder(torch.nn.Module):
             sdf = raw
             beta = torch.clamp(self.beta, min=0.0001, max=1.0)
             s = 1.0 / beta
-            sigma = (0.5 + 0.5 * sdf.sign()) * (1 - torch.sigmoid(sdf * s)) * s
+            # Instead of sdf.sign() use tanh for smooth gradient
+            sigma = (0.5 + 0.5 * torch.tanh(sdf * 100)) * (1 - torch.sigmoid(sdf * s)) * s
         else:
             sigma = raw
 
-        return {'rgb': rgb, 'sigma': sigma}
+        return {'rgb': rgb, 'sigma': sigma, 'sdf': raw}
 
 class OSGDinoDecoder(torch.nn.Module):
     def __init__(self, n_features, options):
