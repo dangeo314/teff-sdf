@@ -172,14 +172,25 @@ class ImportanceRenderer(torch.nn.Module):
         out = decoder(sampled_features, sample_directions)
         # Eikonal loss
         if options['use_sdf'] and sample_coordinates.requires_grad:
-            gradients = torch.autograd.grad(
-                outputs=out['sdf'].sum(),
-                inputs=sample_coordinates,
-                create_graph=True,
-                retain_graph=True
-            )[0]
-            out['eikonal_loss'] = ((gradients.norm(2, dim=-1) - 1) ** 2).mean()
-            self._eikonal_loss = out['eikonal_loss']
+            eps = 0.001
+            with torch.no_grad():
+                # Finite differences - 6 extra forward passes
+                dx = torch.tensor([eps, 0, 0], device=sample_coordinates.device)
+                dy = torch.tensor([0, eps, 0], device=sample_coordinates.device)
+                dz = torch.tensor([0, 0, eps], device=sample_coordinates.device)
+
+                def get_sdf(coords):
+                    feats = sample_from_planes(self.plane_axes, planes, coords, padding_mode='zeros',
+                                               box_warp=options['box_warp'])
+                    return decoder(feats, sample_directions)['sdf']
+
+                grad_x = (get_sdf(sample_coordinates + dx) - get_sdf(sample_coordinates - dx)) / (2 * eps)
+                grad_y = (get_sdf(sample_coordinates + dy) - get_sdf(sample_coordinates - dy)) / (2 * eps)
+                grad_z = (get_sdf(sample_coordinates + dz) - get_sdf(sample_coordinates - dz)) / (2 * eps)
+
+                gradients = torch.stack([grad_x, grad_y, grad_z], dim=-1)
+
+            self._eikonal_loss =  ((gradients.norm(2, dim=-1) - 1) ** 2).mean()
 
         if options.get('density_noise', 0) > 0:
             out['sigma'] += torch.randn_like(out['sigma']) * options['density_noise']

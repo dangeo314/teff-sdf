@@ -163,7 +163,7 @@ class TriPlaneGeneratorPose(torch.nn.Module):
         if cache_backbone:
             self._last_planes = planes
 
-        if self.rendering_kwargs.get('use_sdf', True):
+        if self.rendering_kwargs.get('use_sdf', False):
             ray_origins = ray_origins.requires_grad_(True)
         # Reshape output into three 32-channel planes
         planes = planes.view(len(planes), -1, 32, planes.shape[-2], planes.shape[-1])

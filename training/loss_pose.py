@@ -455,7 +455,7 @@ class StyleGAN2LossPose(Loss):
 
             # Eikonal loss
             eikonal_loss = 0
-            if self.G.rendering_kwargs.get('use_sdf', True):
+            if self.G.rendering_kwargs.get('use_sdf', False):
                 eikonal = gen_img.get('eikonal_loss', None)
                 if eikonal is not None:
                     eikonal_loss = eikonal * self.G.rendering_kwargs.get('eikonal_weight', 0.1)
