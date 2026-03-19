@@ -24,16 +24,16 @@ if __name__ == '__main__':
    dir_path = os.path.dirname(os.path.realpath(__file__))
    extracted_data_path = os.path.join(working_dir, os.path.splitext(download_name)[0])
 
-   print("Downloading data...")
-   zipped_dataset = os.path.join(working_dir, download_name)
-   gdown.download(url, zipped_dataset, quiet=False)
+   # print("Downloading data...")
+   # zipped_dataset = os.path.join(working_dir, download_name)
+   # gdown.download(url, zipped_dataset, quiet=False)
 
-   print("Unzipping downloaded data...")
-   shutil.unpack_archive(zipped_dataset, working_dir)
+   # print("Unzipping downloaded data...")
+   # shutil.unpack_archive(zipped_dataset, working_dir)
 
-   print("Converting camera parameters...")
-   cmd = f"python {os.path.join(dir_path, 'preprocess_shapenet_cameras.py')} --source={extracted_data_path}"
-   subprocess.run([cmd], shell=True)
+   # print("Converting camera parameters...")
+   # cmd = f"python {os.path.join(dir_path, 'preprocess_shapenet_cameras.py')} --source={extracted_data_path}"
+   # subprocess.run([cmd], shell=True)
 
    print("Creating dataset zip...")
    cmd = f"python {os.path.join(dir_path, '', 'dataset_tool.py')}"

@@ -14,11 +14,10 @@
 Code adapted from
 "Alias-Free Generative Adversarial Networks"."""
 import os
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
-os.environ['CUDA_HOME'] = '/usr/local/cuda-11.8'
-os.environ['PATH'] = '/usr/local/cuda-11.8/bin:' + os.environ.get('PATH', '')
-os.environ['LD_LIBRARY_PATH'] = '/usr/local/cuda-11.8/lib64:' + os.environ.get('LD_LIBRARY_PATH', '')
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
+# os.environ['CUDA_HOME'] = '/usr/local/cuda-11.8'
+# os.environ['PATH'] = '/usr/local/cuda-11.8/bin:' + os.environ.get('PATH', '')
+# os.environ['LD_LIBRARY_PATH'] = '/usr/local/cuda-11.8/lib64:' + os.environ.get('LD_LIBRARY_PATH', '')
 
 from email.policy import default
 import click
@@ -223,6 +222,7 @@ def parse_comma_separated_list(s):
 @click.option('--lambda_cvg_fg',        help='Strength of foreground coverage loss', metavar='FLOAT',               type=click.FloatRange(min=0), default=0.1)
 @click.option('--lambda_cvg_bg',        help='Strength of background coverage loss', metavar='FLOAT',               type=click.FloatRange(min=0), default=10)
 @click.option('--use_sdf', help='Use SDF rendering instead of density', type=bool, default=False)
+@click.option('--use_eikonal', help='Use Eikonal loss', type=bool, default=False)
 
 # Main TeFF hyperparameters.
 @click.option('--temperature_init',        help='Initial temperature for pose PDF', metavar='FLOAT',               type=click.FloatRange(min=0), default=1.0)
@@ -457,7 +457,8 @@ def main(**kwargs):
         'cache_pose': opts.cache_pose,
         'add_noise_to_angle': opts.add_noise_to_angle,
         'uniform_sampling_test':opts.uniform_sampling_test,
-        'use_sdf': opts.use_sdf
+        'use_sdf': opts.use_sdf,
+        'use_eikonal': opts.use_eikonal
     }
 
     if opts.cfg == 'ffhq':

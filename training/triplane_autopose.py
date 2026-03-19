@@ -327,7 +327,7 @@ class OSGDecoder(torch.nn.Module):
 
         N, M, C = x.shape
         x = x.view(N*M, C)
-
+        out = {}
         x = self.net(x)
         x = x.view(N, M, -1)
         rgb = torch.sigmoid(x[..., 1:])*(1 + 2*0.001) - 0.001 # Uses sigmoid clamping from MipNeRF
@@ -338,10 +338,14 @@ class OSGDecoder(torch.nn.Module):
             s = 1.0 / beta
             # Instead of sdf.sign() use tanh for smooth gradient
             sigma = (0.5 + 0.5 * torch.tanh(sdf * 100)) * (1 - torch.sigmoid(sdf * s)) * s
+            if self.options.get('use_eikonal', False):
+                out['sdf'] = raw
         else:
             sigma = raw
 
-        return {'rgb': rgb, 'sigma': sigma, 'sdf': raw}
+        out['rgb'] = rgb
+        out['sigma'] = sigma
+        return out
 
 class OSGDinoDecoder(torch.nn.Module):
     def __init__(self, n_features, options):

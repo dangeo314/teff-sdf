@@ -41,8 +41,8 @@ def setup_snapshot_image_grid(training_set, random_seed=0):
     rnd = np.random.RandomState(random_seed)
     # gw = np.clip(7680 // training_set.image_shape[2], 7, 32)
     # gh = np.clip(4320 // training_set.image_shape[1], 4, 32)
-    gw = 8# np.clip(7680 // 512, 7, 32)
-    gh = 4# np.clip(4320 // 512, 4, 32)
+    gw = 4# np.clip(7680 // 512, 7, 32)
+    gh = 2# np.clip(4320 // 512, 4, 32)
 
     # No labels => show random subset of training samples.
     if not training_set.has_labels:
@@ -507,11 +507,12 @@ def training_loop(
             cam_pose[:,1:2] = torch.pi / 2
             cam2world_matrix = LookAtPose.sample(cam_pose[:,0:1], cam_pose[:,1:2], torch.tensor(G_ema.rendering_kwargs['avg_camera_pivot'], device=z.device), 
                                                         radius=G_ema.rendering_kwargs['avg_camera_radius'], device=z.device)
-            out = [G_ema(z=z, c=torch.cat([cam2world_matrix.reshape(-1,16), c[:,16:]], dim=1), noise_mode='const', cam_pose=cam_pose) for z, c in zip(grid_z, grid_c)]
-            images = torch.cat([o['image'].cpu() for o in out]).numpy()
-            images_raw = torch.cat([o['image_raw'].cpu() for o in out]).numpy()
-            images_depth = -torch.cat([o['image_depth'].cpu() for o in out]).numpy()
-            dinos = torch.cat([o['dino_raw'].cpu() for o in out]).numpy()
+            with torch.no_grad():
+                out = [G_ema(z=z, c=torch.cat([cam2world_matrix.reshape(-1,16), c[:,16:]], dim=1), noise_mode='const', cam_pose=cam_pose) for z, c in zip(grid_z, grid_c)]
+            images = torch.cat([o['image'].cpu() for o in out]).detach().numpy()
+            images_raw = torch.cat([o['image_raw'].cpu() for o in out]).detach().numpy()
+            images_depth = -torch.cat([o['image_depth'].cpu() for o in out]).detach().numpy()
+            dinos = torch.cat([o['dino_raw'].cpu() for o in out]).detach().numpy()
             save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_front.png'), drange=[-1,1], grid_size=grid_size)
             save_image_grid(images_raw, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_raw_front.png'), drange=[-1,1], grid_size=grid_size)
             save_image_grid(images_depth, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_depth_front.png'), drange=[images_depth.min(), images_depth.max()], grid_size=grid_size)
@@ -523,11 +524,12 @@ def training_loop(
             cam2world_matrix = LookAtPose.sample(cam_pose[:,0:1], cam_pose[:,1:2], torch.tensor(G_ema.rendering_kwargs['avg_camera_pivot'], device=z.device), 
                                                             radius=G_ema.rendering_kwargs['avg_camera_radius'], device=z.device)
 
+            torch.cuda.empty_cache()
             out = [G_ema(z=z, c=torch.cat([cam2world_matrix.reshape(-1,16), c[:,16:]], dim=-1), noise_mode='const', cam_pose=cam_pose) for z, c in zip(grid_z, grid_c)]
-            images = torch.cat([o['image'].cpu() for o in out]).numpy()
-            images_raw = torch.cat([o['image_raw'].cpu() for o in out]).numpy()
-            images_depth = -torch.cat([o['image_depth'].cpu() for o in out]).numpy()
-            dinos = torch.cat([o['dino_raw'].cpu() for o in out]).numpy()
+            images = torch.cat([o['image'].cpu() for o in out]).detach().numpy()
+            images_raw = torch.cat([o['image_raw'].cpu() for o in out]).detach().numpy()
+            images_depth = -torch.cat([o['image_depth'].cpu() for o in out]).detach().numpy()
+            dinos = torch.cat([o['dino_raw'].cpu() for o in out]).detach().numpy()
             save_image_grid(images, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_side.png'), drange=[-1,1], grid_size=grid_size)
             save_image_grid(images_raw, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_raw_side.png'), drange=[-1,1], grid_size=grid_size)
             save_image_grid(images_depth, os.path.join(run_dir, f'fakes{cur_nimg//1000:06d}_depth_side.png'), drange=[images_depth.min(), images_depth.max()], grid_size=grid_size)

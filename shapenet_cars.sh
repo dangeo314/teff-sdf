@@ -8,11 +8,12 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 #export NCCL_DEBUG=INFO
 export NCCL_TIMEOUT=1800
 # export NCCL_P2P_DISABLE=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/cars_128_20k.zip \
-  --gpus=2 --batch=32 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
+python train.py  --use_sdf=True --use_eikonal=True --outdir=training-runs --cfg=shapenet --data=datasets/cars_128_20k.zip \
+  --gpus=8 --batch=64 --batch-gpu=8   --mbstd-group=4 --gamma=0.3 --gen_pose_cond=false --dis_pose_cond=True --dis_cam_weight=2 \
   --cbase 32768 --dataset_resolution=128    --dis_linear_pose=False \
-  --gpc_reg_prob=0.5 \
+  --gpc_reg_prob=0.5  --kimg=2000 \
   --flip_to_dis=true --flip_to_disd=true  --gpc_reg_fade_kimg=1000 \
   --neural_rendering_resolution_final 64 \
   --dino_data=datasets/in_the_wild/shapenetcars_dinov1_stride4_pca16_nomask_5k.zip --dino_channals 3\
@@ -21,6 +22,8 @@ python train.py  --outdir=training-runs --cfg=shapenet --data=datasets/cars_128_
   --v_start=0 --v_end=1 --v_discrete_num=18 --uniform_sphere_sampling=True \
   --h_discrete_num=36 --h_mean=3.1415926 --flip_type=flip_both_shapenet \
   --dis_cam_dim=2 --lambda_cvg_fg=100 \
-  --temperature_init=10.0 --temperature_start_kimg=1500 --temperature_end_kimg=2500 \
+  --temperature_init=10.0 --temperature_start_kimg=200 \
+  --temperature_end_kimg=1000 \
   --shapenet_multipeak=False \
-  --create_label_fov=69.1882
+  --create_label_fov=69.1882 
+  

@@ -124,7 +124,7 @@ class ImportanceRenderer(torch.nn.Module):
         sample_coordinates = (ray_origins.unsqueeze(-2) + depths_coarse * ray_directions.unsqueeze(-2)).reshape(batch_size, -1, 3)
         sample_directions = ray_directions.unsqueeze(-2).expand(-1, -1, samples_per_ray, -1).reshape(batch_size, -1, 3)
 
-        if rendering_options['use_sdf'] and not test:
+        if rendering_options.get('use_sdf', False) and rendering_options.get('use_eikonal', False) and not test:
             sample_coordinates = sample_coordinates.detach().requires_grad_(True)
 
         out = self.run_model(planes, dino_planes, decoder, dino_decoder, sample_coordinates, sample_directions, rendering_options)
@@ -171,26 +171,32 @@ class ImportanceRenderer(torch.nn.Module):
 
         out = decoder(sampled_features, sample_directions)
         # Eikonal loss
-        if options['use_sdf'] and sample_coordinates.requires_grad:
+        if options.get('use_sdf', False) and options.get('use_eikonal', False) and sample_coordinates.requires_grad:
             eps = 0.001
+            
+            # Subsample points to reduce memory
+            n_eikonal = sample_coordinates.shape[1] // 8
+            idx = torch.randperm(sample_coordinates.shape[1], device=sample_coordinates.device)[:n_eikonal]
+            coords_sub = sample_coordinates[:, idx, :]
+            dirs_sub = sample_directions[:, idx, :]
+            
             with torch.no_grad():
-                # Finite differences - 6 extra forward passes
                 dx = torch.tensor([eps, 0, 0], device=sample_coordinates.device)
                 dy = torch.tensor([0, eps, 0], device=sample_coordinates.device)
                 dz = torch.tensor([0, 0, eps], device=sample_coordinates.device)
 
                 def get_sdf(coords):
-                    feats = sample_from_planes(self.plane_axes, planes, coords, padding_mode='zeros',
-                                               box_warp=options['box_warp'])
-                    return decoder(feats, sample_directions)['sdf']
+                    feats = sample_from_planes(self.plane_axes, planes, coords, 
+                                            padding_mode='zeros', box_warp=options['box_warp'])
+                    return decoder(feats, dirs_sub)['sdf']
 
-                grad_x = (get_sdf(sample_coordinates + dx) - get_sdf(sample_coordinates - dx)) / (2 * eps)
-                grad_y = (get_sdf(sample_coordinates + dy) - get_sdf(sample_coordinates - dy)) / (2 * eps)
-                grad_z = (get_sdf(sample_coordinates + dz) - get_sdf(sample_coordinates - dz)) / (2 * eps)
+                grad_x = (get_sdf(coords_sub + dx) - get_sdf(coords_sub - dx)) / (2 * eps)
+                grad_y = (get_sdf(coords_sub + dy) - get_sdf(coords_sub - dy)) / (2 * eps)
+                grad_z = (get_sdf(coords_sub + dz) - get_sdf(coords_sub - dz)) / (2 * eps)
 
                 gradients = torch.stack([grad_x, grad_y, grad_z], dim=-1)
 
-            self._eikonal_loss =  ((gradients.norm(2, dim=-1) - 1) ** 2).mean()
+            self._eikonal_loss = ((gradients.norm(2, dim=-1) - 1) ** 2).mean()
 
         if options.get('density_noise', 0) > 0:
             out['sigma'] += torch.randn_like(out['sigma']) * options['density_noise']

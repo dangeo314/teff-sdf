@@ -13,7 +13,7 @@ sys.path.append('dino-vit-features')
 from extractor import ViTExtractor
 
 def extract_dino_features(
-    image_zip='datasets/cars_128.zip',
+    image_zip='datasets/cars_128_20k.zip',
     output_zip='datasets/in_the_wild/shapenetcars_dinov1_stride4_pca16_nomask_5k.zip',
     model_type='dino_vits8',
     stride=4,
